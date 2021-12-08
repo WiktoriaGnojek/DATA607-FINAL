@@ -1,0 +1,241 @@
+---
+title: "Data 607 Final Project"
+author: "Wiktoria Gnojek"
+date: "12/1/2021"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+**Introduction**
+
+Population rates have been increasing world wide, especially in Africa. Overlooking COVID, we can predict that population rates will keep increasing at a constant rate yearly. For the final project I wanted to explore population increase in Africa specifically. I wanted to understand what factors are contributing to the increase. I also wanted to explore the idea of urban life and why there is such a move towards the lifestyle. 
+
+
+**Research Motivation and Outcome Expectations**
+
+Is there an increase in the population of Africa? If so, what is causing the increase and where is movement increasing? In my analysis I will be looking at migration, fertility rate, and urbanization as possible factors. I will be exploring some possible conclusions using Worldometer which is a variable based population recorder. Worldometer is updated frequently with the last updated being Monday, December 6, 2021. I will also be relating my findings to a Washington Post article that can give insights on possible conclusions. 
+
+Source: Worldometer (www.Worldometers.info)
+Elaboration of data by United Nations, Department of Economic and Social Affairs, Population Division. World Population Prospects: The 2019 Revision. (Medium-fertility variant).
+
+
+**Hypothesis**
+
+There is an increase in population and urban life. 
+
+
+**Web Scraping and Acquisition**
+
+The data on African population was taken from worldometers.info and can be found at this link; https://www.worldometers.info/world-population/africa-population/. 
+
+The code block below utilizes webscraping to extract two data tables. The first table "[[1]]" represents population data from 1955 to 2020. The second "[[2]]" shows future predictions on what the population in Africa will look like 30 years from now. 
+```{r}
+library(rvest)
+library(dplyr)
+url <- read_html("https://www.worldometers.info/world-population/africa-population/")
+dataset_chosen <- ".table-responsive"
+population <- html_nodes(x = url, css = dataset_chosen) %>%
+  html_table()
+current_pop <- population[1] 
+predicted_pop <- population[2]
+```
+**Transformation and Tidy**
+
+To begin, I am rewriting the initial extracted data and saving it as a csv. This makes it easier to perform analysis as well as transform. 
+
+Note; These will automatically appear on your desktop screen. 
+
+For reproduction purposes I uploaded them to a public GitHub. https://github.com/WiktoriaGnojek/DATA607-FINAL
+```{r}
+write.csv(current_pop, 'current.csv')  ## from webscrape
+write.csv(predicted_pop, 'predicted.csv') ## from webscrape
+```
+Loading the csv(s) back to the rmarkdown for analysis. 
+
+In this section I will work with the 1955 - 2020 data.
+```{r}
+current_reloaded <- read.csv("https://raw.githubusercontent.com/WiktoriaGnojek/DATA607-FINAL/main/current.csv") ## from github
+```
+**Please find a key to what each column means:**
+
+(This data was taken directly from the source)
+
+Year: as of July 1 of the year indicated.
+
+Population: Overall total population (both sexes and all ages) in the region as of July 1 of the year indicated, as estimated by the United Nations, Department of Economic and Social Affairs, Population Division. World Population Prospects: The 2019 Revision. For forecasted years, the U.N. medium-fertility variant is used.
+
+Yearly % Change: For 2019: percentage change in total population over the last year (from July 1, 2018 to June 30 2019). For all other years: latest year annual percentage change equivalent assuming homogeneous change in the preceding five year period, calculated through reverse compounding.
+
+Yearly Change: For 2019: absolute change in total population (increase or decrease in number of people) over the last year (from July 1, 2018 to June 30 2019). For all other years: average annual numerical change over the preceding five year period.
+
+Migrants (net): The average annual number of immigrants minus the number of emigrants over the preceding five year period (running from July 1 to June 30 of the initial and final years), or subsequent five year period (for 2016 data). A negative number means that there are more emigrants than immigrants.
+
+Median Age: age that divides the population into two numerically equal groups: half of the people are older than the median age indicated and half are younger. This parameter provides an indication of age distribution.
+
+Fertility Rate: (Total Fertility Rate, or TFR), it is expressed as children per woman. It is calculated as the average number of children an average woman will have during her reproductive period (15 to 49 years old) based on the current fertility rates of every age group in the countries within Africa, and assuming she is not subject to mortality.
+
+Density (P/Km²): (Population Density) Population per square Kilometer (Km²).
+
+Urban Pop % : Urban population as a percentage of total population.
+
+Urban Population: Population living in areas classified as urban according to the criteria used by each country.
+
+Africa's Share of World Pop: Total population as a percentage of total World Population as of July 1 of the year indicated.
+
+World Population: Total World Population as of July 1 of the year indicated.
+
+Global Rank: Position held by Africa in the list of all regions worldwide ranked by population (from the highest population to the lowest population) as of July 1 of the year indicated.
+
+**Cleaner Data Table Format**
+```{r}
+library(DT)
+datatable(current_reloaded)
+```
+
+**Data Representation**
+
+Graph population and change over years 
+```{r}
+library(ggplot2)
+population_entire <- ggplot(current_reloaded, aes(x=Year, y=Population)) +
+  ggtitle("Population from 1955 - 2020") +
+  geom_line(color = "red", size = 1)
+yearly_change <- ggplot(current_reloaded, aes(x=Year, y=Yearly.Change)) +
+  ggtitle("Yearly Change from 1955 - 2020") +
+  geom_line(color = "orange", size = 1)
+```
+Migrant Rate
+```{r}
+migrant <- ggplot(current_reloaded, aes(x=Year, y=Migrants..net.)) +
+  ggtitle("The Migrant Rate from 1955 - 2020") +
+  geom_line(color = "blue", size = 1)
+```
+Fertility Rate 
+```{r}
+fertility <- ggplot(current_reloaded, aes(x=Year, y=Fertility.Rate)) +
+  ggtitle("The Fertility Rate from 1955 - 2020") +
+  geom_line(color = "green", size = 1)
+```
+
+```{r}
+## Combining all four for a cleaner look
+library(ggpubr)
+ggarrange(population_entire, yearly_change, fertility, migrant + rremove("x.text"), 
+          labels = c(),
+          ncol = 2, nrow = 2)
+```
+
+Statistical analysis of the above four charts to understand strenght of x and y relationship. 
+```{r}
+population_scatter <- ggscatter(current_reloaded, x = "Year", y = "Population", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Year", ylab = "Population")
+change_scatter <- ggscatter(current_reloaded, x = "Year", y = "Yearly.Change", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Year", ylab = "Yearly Change")
+fertility_scatter <- ggscatter(current_reloaded, x = "Year", y = "Fertility.Rate", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Year", ylab = "Fertility Rate")
+migrant_scatter <- ggscatter(current_reloaded, x = "Year", y = "Migrants..net.", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Year", ylab = "Migrant Rate")
+## arrange in one chart 
+ggarrange(population_scatter, change_scatter, fertility_scatter, migrant_scatter + rremove("x.text"), 
+          labels = c(),
+          ncol = 2, nrow = 2)
+```
+
+From the generated graphics we can conclude that there is an increase and strong relationship in population over the past 70 years. This is proven by the line graph as well as statistical scatter plot. The R for population and yearly change is at 0.98 insinuating a large positive linear association. This is supporting evidence to my hypothesis. 
+
+As for fertility rate and migration, we conclude a negative relationship over the years. This is also supported by the statistical calculations. For fertility we get a -0.95 proving a large negative association. As for migration the calculations resulted in a -0.77 showing a medium negative association. From this statistical conclusion we understand that fertility rate and migration are not the drivers for an increase in population. This means that the increase has to result from different factors. 
+This is not the initial result I was expecting, and could mean that factors such as higher life span, decline in infant mortality rates, decline in maternal mortality rates, and decline in overall death rates could be the reason for the population increase. 
+
+To further understand that conclusion I did a final plot of median age to see if it could explain lifespan and support that argument. 
+
+```{r}
+## TAKEN FROM SOURCE (Median Age: age that divides the population into two numerically equal groups: half of the people are older than the median age indicated and half are younger. This parameter provides an indication of age distribution.)
+ggplot(current_reloaded, aes(x=Year, y=Median.Age)) +
+  ggtitle("Median Age from 1955 - 2020") +
+  geom_line(color = "black", size = 1)
+```
+
+**Part Two**
+
+Part two of hypothesis, looking at movement to urban life based on the article discussed during meetup which can be found at this link; https://www.dropbox.com/s/hmt0cgwhkvhcb63/How%20Africa%20will%20become%20the%20center%20of%20the%20world%E2%80%99s%20urban%20future%20-%20Washington%20Post.pdf?dl=0
+
+Because the link is a drop box, the title of the article is "How Africa will become the center of the world’s urban future - Washington Post"
+
+Looking at urban population from Worldometer data and seeing if it compares to the analysis from the Washington Post. The Washington Post claims that there is an increase in urbanization, and that we will continue to see the increase. 
+```{r}
+urban <- ggplot(current_reloaded, aes(x=Year, y=Urban.Population)) +
+  ggtitle("The Urbanization from 1955 - 2020") +
+  geom_line(color = "purple", size = 1)
+urban
+```
+
+Correlation Analysis to determine relationship between x and y 
+```{r}
+library("ggpubr")
+ggscatter(current_reloaded, x = "Year", y = "Urban.Population", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Year", ylab = "Urban Population")
+```
+
+From the statistical models we have confirmation that the observations of the Washington Post article are correct. There has been a mass increase in urbanization with percentages going up by 1-2% a year. 
+
+"They found that changes in government policies, education levels, access to change had significant effects on the birthrates driving population growth."
+
+**Final Analysis**
+
+The final analysis is prediction related. The Washington Post article has mentioned continuous rapid growth, stating that "dozens of African cities will join the ranks of humanity’s biggest megalopolises
+between now and 2100". 
+
+The webscraped data can provide insight on this claim as I also generated a data set that focused on predictions up to the year 2050. 
+```{r}
+perdiction_reloaded <- read.csv("https://raw.githubusercontent.com/WiktoriaGnojek/DATA607-FINAL/main/predicted.csv") ## from github
+```
+Statistical Analysis
+
+A little insight on Urban Prediction
+```{r}
+urban_predicted <- ggplot(perdiction_reloaded, aes(x=Year, y=Urban.Population)) +
+  ggtitle("Urban Perdiction (2020-2050)") +
+  geom_line(color = "black", size = 1)
+
+urban_statistic <- ggscatter(perdiction_reloaded, x = "Year", y = "Urban.Population", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Year", ylab = "Urban Population")
+ggarrange(urban_predicted, urban_statistic + rremove("x.text"), 
+          labels = c(),
+          ncol = 2, nrow = 2)
+```
+
+Again, we see confirmation of a positive relationship further supporting the claim of the article and my hypothesis. 
+
+**Final Transformation Involving Mutation**
+
+Lastly, I wanted to look at the predicted data to see if the Washington Post article is correct about the population of Africa (Urban) in comparison to the entire world population. 
+```{r}
+library(tidyverse)
+percent.analysis <- perdiction_reloaded %>%
+  select(Year, Urban.Population, World.Population) %>%
+  mutate(Urban.To.World.Percent = (Urban.Population/World.Population) * 100)
+datatable(percent.analysis)
+```
+
+"Thirteen of the world’s 20 biggest urban areas will be in Africa — up from just two today — as will more
+than a third of the world’s population." (Washington Post)
+
+We can assume that the predictive analysis does support the claims and hypothesis of the Washington Post article. If all factors remain the same, by 2100 the urban population of Africa will be around 30% of the entire world population. 
+
+
+**Conclusion**
+
+To reiterate, the research conducted was done in hopes of understanding and supporting the hypothesis of an increase in the population of Africa, as well as an increase in the population of urban Africa. From the results, we can conclude that there is an increase in population, and there will continue to be an increase yearly if all factors remain. We can infer that increase might not be due to fertility or migration because of the negative relationship presented. Further research can conclude that other factors like mortality rate, education, lifespan, and policy changes could be the cause. Understanding population increase can help expand and improve infrastructure, healthy and political polices, and more. 
